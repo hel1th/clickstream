@@ -74,7 +74,7 @@ services:
     restart: unless-stopped
 
   clickhouse:
-    image: clickhouse/clickhouse-server:24.3-alpine
+    image: clickhouse/clickhouse-server:25.8.18.1
     container_name: clickstream-clickhouse
     ports:
       - "8123:8123"   # HTTP interface (curl, UI)
