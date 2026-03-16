@@ -1,0 +1,104 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: clickstream-postgres
+    environment:
+      POSTGRES_USER: clickstream
+      POSTGRES_PASSWORD: clickstream
+      POSTGRES_DB: clickstream
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clickstream -d clickstream"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+    
+    restart: unless-stopped
+
+  redis:
+    image: redis:8-alpine
+    container_name: clickstream-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - "redis_data:/data"
+    # AOF persistance сохраняет данные после перезапуска
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+    
+    restart: unless-stopped
+
+  kafka:
+    image: apache/kafka:4.2.0
+    container_name: clickstream-kafka
+    ports:
+      - "9092:9092"  # connect from host
+    environment:
+      KAFKA_NODE_ID: 1  # unique broker's id
+      KAFKA_PROCESS_ROLES: broker,controller  # shared node (broker and controller)
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,EXTERNAL://localhost:9092
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+      CLUSTER_ID: "aIOH5KI-Su-1OPAbCS6uVQ"
+
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3-alpine
+    container_name: clickstream-clickhouse
+    ports:
+      - "8123:8123"   # HTTP interface (curl, UI)
+      - "9000:9000"   # Native protocol (Go-driver)
+    environment:
+      CLICKHOUSE_USER: clickstream
+      CLICKHOUSE_PASSWORD: clickstream
+      CLICKHOUSE_DB: clickstream
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+volumes:
+  postgres_data:
+  redis_data:
+  kafka_data:
+  clickhouse_data:
