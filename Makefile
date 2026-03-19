@@ -1,4 +1,4 @@
-.PHONY: up down logs ps kafka-topics kafka-create-topics
+.PHONY: up down logs ps kafka-topics kafka-create-topics run-gateway migrate-up migrate-down
 
 up:
 	docker compose up -d
@@ -22,6 +22,15 @@ logs-%:
 #containers status
 make ps:
 	docker compose ps
+
+run-gateway:
+	go run ./cmd/gateway/
+
+migrate-up:
+	migrate -path ./migrations -database "${POSTGRES_DSN}" up
+
+migrate-down:
+	migrate -path ./migrations -database "${POSTGRES_DSN}" down 1
 
 # kafka's topic list
 kafka-topics:

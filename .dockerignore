@@ -1,0 +1,19 @@
+# .dockerignore
+.git
+.env
+.env.*
+!.env.example
+
+# локальные бинарники
+bin/
+gateway
+
+# данные volumes если монтируешь локально
+data/
+
+# IDE
+.idea/
+.vscode/
+
+# Go test cache
+*.test
