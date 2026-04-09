@@ -56,7 +56,7 @@ services:
     image: apache/kafka:4.2.0
     container_name: clickstream-kafka
     ports:
-      - "9092:9092"  # connect from host
+      - "9092:9092"   # for host / external access
     environment:
       KAFKA_NODE_ID: 1  # unique broker's id
       KAFKA_PROCESS_ROLES: broker,controller  # shared node (broker and controller)
@@ -82,11 +82,11 @@ services:
     volumes:
       - kafka_data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:29092 --list || exit 1"]
       interval: 10s
       timeout: 10s
-      retries: 10
-      start_period: 30s
+      retries: 12
+      start_period: 40s
     restart: unless-stopped
 
   clickhouse:

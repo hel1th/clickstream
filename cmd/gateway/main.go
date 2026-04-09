@@ -11,6 +11,9 @@ import (
 	"time"
 
 	"github.com/hel1th/clickstream/internal/config"
+	"github.com/hel1th/clickstream/internal/handler"
+	"github.com/hel1th/clickstream/internal/kafka"
+	"github.com/hel1th/clickstream/internal/middleware"
 	"github.com/hel1th/clickstream/internal/postgres"
 )
 
@@ -43,14 +46,17 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
-	})
+	producer := kafka.NewProducer(cfg.KafkaBrokers, cfg.KafkaTopic, logger)
+	defer producer.Close()
+
+	logger.Info("kafka producer initialized", "brokers", cfg.KafkaBrokers)
+
+	h := handler.New(pgPool, producer, logger)
+	h.RegisterRoutes(mux)
 
 	srv := http.Server{
 		Addr:    ":" + cfg.HTTPPort,
-		Handler: mux,
+		Handler: middleware.Logging(logger)(mux),
 
 		WriteTimeout: 10 * time.Second,
 		ReadTimeout:  5 * time.Second,
